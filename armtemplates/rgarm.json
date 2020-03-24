@@ -1,0 +1,322 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualMachines_nessvm_name": {
+            "defaultValue": "nessvm",
+            "type": "String"
+        },
+        "storageAccounts_nessstor_name": {
+            "defaultValue": "nessstor",
+            "type": "String"
+        },
+        "publicIPAddresses_ness_ip_name": {
+            "defaultValue": "ness-ip",
+            "type": "String"
+        },
+        "virtualNetworks_ness_vnet_name": {
+            "defaultValue": "ness-vnet",
+            "type": "String"
+        },
+        "vaults_nessvault_name": {
+            "defaultValue": "nessvault",
+            "type": "String"
+        },
+        "networkInterfaces_ness_nic_name": {
+            "defaultValue": "ness-nic",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2019-11-01",
+            "name": "[parameters('publicIPAddresses_ness_ip_name')]",
+            "location": "westeurope",
+            "sku": {
+                "name": "Basic"
+            },
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "nessdevops",
+                    "fqdn": "nessdevops.westeurope.cloudapp.azure.com"
+                },
+                "ipTags": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2019-11-01",
+            "name": "[parameters('virtualNetworks_ness_vnet_name')]",
+            "location": "westeurope",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/16"
+                    ]
+                },
+                "dhcpOptions": {
+                    "dnsServers": []
+                },
+                "subnets": [
+                    {
+                        "name": "ness-subnet",
+                        "properties": {
+                            "addressPrefix": "10.0.10.0/24",
+                            "serviceEndpoints": [],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            }
+        },
+        {
+            "type": "Microsoft.RecoveryServices/vaults",
+            "apiVersion": "2018-01-10",
+            "name": "[parameters('vaults_nessvault_name')]",
+            "location": "westeurope",
+            "sku": {
+                "name": "RS0",
+                "tier": "Standard"
+            },
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[parameters('storageAccounts_nessstor_name')]",
+            "location": "westeurope",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "isHnsEnabled": false,
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "accessTier": "Hot"
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2019-11-01",
+            "name": "[concat(parameters('virtualNetworks_ness_vnet_name'), '/ness-subnet')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ness_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.0.10.0/24",
+                "serviceEndpoints": [],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Enabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.RecoveryServices/vaults/backupPolicies",
+            "apiVersion": "2016-12-01",
+            "name": "[concat(parameters('vaults_nessvault_name'), '/DefaultPolicy')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.RecoveryServices/vaults', parameters('vaults_nessvault_name'))]"
+            ],
+            "properties": {
+                "backupManagementType": "AzureIaasVM",
+                "protectedItemsCount": 0
+            }
+        },
+        {
+            "type": "Microsoft.RecoveryServices/vaults/backupPolicies",
+            "apiVersion": "2016-12-01",
+            "name": "[concat(parameters('vaults_nessvault_name'), '/HourlyLogBackup')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.RecoveryServices/vaults', parameters('vaults_nessvault_name'))]"
+            ],
+            "properties": {
+                "backupManagementType": "AzureWorkload",
+                "protectedItemsCount": 0
+            }
+        },
+        {
+            "type": "Microsoft.RecoveryServices/vaults/replicationAlertSettings",
+            "apiVersion": "2018-01-10",
+            "name": "[concat(parameters('vaults_nessvault_name'), '/defaultAlertSetting')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.RecoveryServices/vaults', parameters('vaults_nessvault_name'))]"
+            ],
+            "properties": {
+                "sendToOwners": "DoNotSend",
+                "customEmailAddresses": []
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('storageAccounts_nessstor_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_nessstor_name'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('storageAccounts_nessstor_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_nessstor_name'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2019-07-01",
+            "name": "[parameters('virtualMachines_nessvm_name')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_ness_nic_name'))]",
+                "[resourceId('Microsoft.Storage/StorageAccounts', parameters('storageAccounts_nessstor_name'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_DS2_v2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "ness-osdisk",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "writeAcceleratorEnabled": false,
+                        "managedDisk": {
+                            "id": "[resourceId('Microsoft.Compute/disks', 'ness-osdisk')]"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "VMness",
+                    "adminUsername": "adamvaskovsky",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": false,
+                        "provisionVMAgent": true
+                    },
+                    "secrets": [],
+                    "allowExtensionOperations": true,
+                    "requireGuestProvisionSignal": true
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_ness_nic_name'))]",
+                            "properties": {
+                                "primary": false
+                            }
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[concat('https://', parameters('storageAccounts_nessstor_name'), '.blob.core.windows.net/')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2019-11-01",
+            "name": "[parameters('networkInterfaces_ness_nic_name')]",
+            "location": "westeurope",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_ness_ip_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ness_vnet_name'), 'ness-subnet')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "nessipconfig",
+                        "properties": {
+                            "privateIPAddress": "10.0.10.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_ness_ip_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ness_vnet_name'), 'ness-subnet')]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('storageAccounts_nessstor_name'), '/default/bootdiagnostics-nessvm-d9ba8846-90ad-4da8-87db-70dfd9929332')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccounts_nessstor_name'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_nessstor_name'))]"
+            ],
+            "properties": {
+                "publicAccess": "None"
+            }
+        }
+    ]
+}
