@@ -3,11 +3,11 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "virtualMachines_nessvm_name": {
-            "defaultValue": "nessvm",
+            "defaultValue": "nessvm1",
             "type": "String"
         },
         "storageAccounts_nessstor_name": {
-            "defaultValue": "nessstor",
+            "defaultValue": "nessstor1",
             "type": "String"
         },
         "publicIPAddresses_ness_ip_name": {
