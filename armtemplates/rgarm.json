@@ -6,20 +6,12 @@
             "defaultValue": "nessvm1",
             "type": "String"
         },
-        "storageAccounts_nessstor_name": {
-            "defaultValue": "nessstor1",
-            "type": "String"
-        },
-        "publicIPAddresses_ness_ip_name": {
+      "publicIPAddresses_ness_ip_name": {
             "defaultValue": "ness-ip",
             "type": "String"
         },
         "virtualNetworks_ness_vnet_name": {
             "defaultValue": "ness-vnet",
-            "type": "String"
-        },
-        "vaults_nessvault_name": {
-            "defaultValue": "nessvault",
             "type": "String"
         },
         "networkInterfaces_ness_nic_name": {
